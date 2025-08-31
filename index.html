@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>JP Residency - Registration & Booking</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <!-- Firebase compat libs for simpler single-file usage -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
+  <style>
+    :root{ --accent:#06b6d4; --accent2:#0ea5a3; --muted:#dff7f8; --card-bg: rgba(255,255,255,0.04) }
+    *{box-sizing:border-box}
+    body{ margin:0; font-family:Arial, Helvetica, sans-serif; background: linear-gradient(135deg,#071129 0%, #0b2545 60%); color:var(--muted); -webkit-font-smoothing:antialiased; }
+    header{ background: linear-gradient(90deg,var(--accent),var(--accent2)); padding:16px; text-align:center; font-weight:800; color:#012; position:sticky; top:0; z-index:20; box-shadow:0 6px 18px rgba(0,0,0,.25); }
+    header h1{ margin:0; color:#fff; font-size:18px; }
+    .wrap{ max-width:980px; margin:20px auto; padding:12px; }
+    .card{ background:var(--card-bg); border-radius:10px; padding:18px; margin-bottom:16px; box-shadow:0 8px 30px rgba(0,0,0,0.45) }
+    .center{ text-align:center }
+    .row{ display:grid; gap:12px }
+    @media(min-width:720px){ .cols-2{ grid-template-columns:repeat(2,1fr); } }
+    label{ display:block; margin-top:10px; font-weight:700; }
+    input,select,textarea,button{ width:100%; padding:10px; margin-top:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.06); background:rgba(0,0,0,0.25); color:var(--muted) }
+    button{ cursor:pointer; font-weight:700; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#012; border:0; padding:10px 14px; border-radius:8px }
+    button.ghost{ background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.06) }
+    .hint{ color:#cfeff1; font-size:13px; margin-top:8px }
+    table{ width:100%; border-collapse:collapse; margin-top:12px; background:#fff; color:#000 }
+    th,td{ border:1px solid #ddd; padding:8px; text-align:center }
+    th{ background:var(--accent); color:#fff }
+    img.thumb{ max-width:200px; border-radius:8px; display:block; margin-top:8px }
+    .hidden{ display:none !important }
+  </style>
+</head>
+<body>
+  <header><h1>JP RESIDENCY GUEST REGISTRATION AND BOOKING FORM</h1></header>
+
+  <div class="wrap">
+    <!-- HOME -->
+    <section id="homeCard" class="card center">
+      <h2 style="margin:6px 0 10px">Welcome</h2>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+        <button id="btnNew">New Registration</button>
+        <button id="btnAlready" class="ghost">Already Registered</button>
+        <button id="btnOwner" class="ghost">Owner Login</button>
+      </div>
+      <p class="hint">Owner password is confidential (set to <strong>AMS</strong> in code). Do not share it publicly.</p>
+    </section>
+
+    <!-- NEW REGISTRATION -->
+    <section id="newCard" class="card hidden">
+      <h2 class="center">New Registration</h2>
+      <form id="regForm">
+        <!-- Personal -->
+        <fieldset style="border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.04)">
+          <legend style="font-weight:800">Personal Information</legend>
+          <div class="row cols-2">
+            <div>
+              <label for="fullName">Full Name</label>
+              <input id="fullName" required placeholder="Full name (required)">
+            </div>
+            <div>
+              <label for="gender">Gender</label>
+              <select id="gender"><option>Male</option><option>Female</option><option>Other</option></select>
+            </div>
+          </div>
+
+          <div class="row cols-2">
+            <div>
+              <label for="mobile">Mobile Number</label>
+              <input id="mobile" placeholder="Mobile number (no restriction)">
+            </div>
+            <div>
+              <label for="email">Email ID</label>
+              <input id="email" placeholder="Email (no restriction)">
+            </div>
+          </div>
+
+          <label for="address">Address</label>
+          <textarea id="address" placeholder="Address"></textarea>
+        </fieldset>
+
+        <!-- ID -->
+        <fieldset style="border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.04); margin-top:12px">
+          <legend style="font-weight:800">ID Proof</legend>
+          <div class="row cols-2">
+            <div>
+              <label for="idType">ID Type</label>
+              <select id="idType"><option>Aadhar Card</option><option>PAN Card</option><option>Passport</option><option>Driving Licence</option></select>
+            </div>
+            <div>
+              <label for="idNumber">ID Number</label>
+              <input id="idNumber" placeholder="ID number (no restriction)">
+            </div>
+          </div>
+
+          <div class="row cols-2">
+            <div>
+              <label for="aadFile">Upload Aadhaar Card Image (required)</label>
+              <input id="aadFile" type="file" accept="image/*" required>
+              <img id="aadPreview" class="thumb hidden" alt="Aadhaar preview">
+            </div>
+            <div>
+              <label for="signFile">Upload Signature Image (required)</label>
+              <input id="signFile" type="file" accept="image/*" required>
+              <img id="signPreview" class="thumb hidden" alt="Signature preview">
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Room -->
+        <fieldset style="border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.04); margin-top:12px">
+          <legend style="font-weight:800">Room Details</legend>
+          <div class="row cols-2">
+            <div>
+              <label for="dateOfLiving">Date of Living</label>
+              <input id="dateOfLiving" type="date">
+            </div>
+            <div>
+              <label for="guests">Number of Guests</label>
+              <select id="guests"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+            </div>
+          </div>
+        </fieldset>
+
+        <!-- Payment -->
+        <fieldset style="border-radius:8px;padding:12px;border:1px solid rgba(255,255,255,0.04); margin-top:12px">
+          <legend style="font-weight:800">Payment Details</legend>
+          <div class="row cols-2">
+            <div>
+              <label for="rent">Room Rent Per Month (₹)</label>
+              <input id="rent" type="number" min="0" placeholder="Monthly rent">
+            </div>
+            <div>
+              <label for="advance">Advance Paid (₹)</label>
+              <input id="advance" type="number" min="0" placeholder="Advance">
+            </div>
+          </div>
+          <label for="meter">Previous Electric Meter Reading</label>
+          <input id="meter" type="number" min="0" placeholder="Previous electric meter reading">
+        </fieldset>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+          <button type="button" id="cancelReg" class="ghost">Cancel</button>
+          <button type="submit" id="submitReg" class="">Submit Details</button>
+        </div>
+        <p id="regMsg" class="hint"></p>
+      </form>
+    </section>
+
+    <!-- CONFIRMATION -->
+    <section id="confirmCard" class="card hidden center">
+      <h2 id="welcomeConfirm" style="font-weight:900"></h2>
+      <p id="regNoText" style="font-weight:800"></p>
+      <div style="max-width:480px;margin:auto;text-align:left">
+        <label for="setPass">Create 4-digit Password</label>
+        <input id="setPass" maxlength="4" placeholder="Exactly 4 digits (numbers)">
+        <label for="confirmMobile">Re-enter your mobile number</label>
+        <input id="confirmMobile" placeholder="Re-enter mobile">
+        <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:12px">
+          <button id="savePassBtn">Save Password</button>
+          <button id="cancelConfirm" class="ghost">Cancel</button>
+        </div>
+        <p id="confirmMsg" class="hint"></p>
+      </div>
+    </section>
+
+    <!-- SUCCESS -->
+    <section id="successCard" class="card hidden center">
+      <h2 id="successWelcome" style="font-weight:900"></h2>
+      <p style="font-weight:800">YOUR REGISTRATION NUMBER IS <span id="successReg" style="color:#fff"></span></p>
+      <p class="hint">Send your details to the owner (password will not be sent).</p>
+      <div style="display:flex;gap:12px;justify-content:center;margin-top:12px">
+        <button id="sendOwner">Send Details to Owner (WhatsApp)</button>
+        <button id="finishBtn" class="ghost">Finish</button>
+      </div>
+    </section>
+
+    <!-- LOGIN (User) -->
+    <section id="loginCard" class="card hidden">
+      <h2 class="center">Already Registered</h2>
+      <div style="max-width:480px;margin:auto">
+        <label>Registration Number</label>
+        <input id="loginReg" placeholder="e.g., 1234">
+        <label>Password</label>
+        <input id="loginPass" type="password" placeholder="Your password">
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+          <button id="loginBtn">Login</button>
+          <button id="backLogin" class="ghost">Back</button>
+        </div>
+        <p id="loginMsg" class="hint"></p>
+      </div>
+    </section>
+
+    <!-- USER VIEW -->
+    <section id="userCard" class="card hidden">
+      <h2 id="userWelcome" style="font-weight:900"></h2>
+      <pre id="userDetails" style="white-space:pre-wrap;text-align:left"></pre>
+      <div id="userImages" style="display:flex;gap:12px;margin-top:12px"></div>
+
+      <h3>Monthly Payments</h3>
+      <table id="userPayments"><thead><tr><th>Month</th><th>Rent</th><th>Status</th></tr></thead><tbody></tbody></table>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+        <button id="sendOwnerFromUser" class="ghost">Send My Details to Owner</button>
+        <button id="logoutUser" class="ghost">Logout</button>
+      </div>
+    </section>
+
+    <!-- OWNER LOGIN -->
+    <section id="ownerLoginCard" class="card hidden">
+      <h2 class="center">Owner Login</h2>
+      <div style="max-width:480px;margin:auto">
+        <label>Owner Password</label>
+        <input id="ownerPassword" type="password" placeholder="Enter owner password">
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+          <button id="ownerLoginBtn">Login</button>
+          <button id="backOwner" class="ghost">Back</button>
+        </div>
+        <p id="ownerLoginMsg" class="hint"></p>
+      </div>
+    </section>
+
+    <!-- OWNER DASHBOARD -->
+    <section id="ownerCard" class="card hidden">
+      <h2 class="center">Owner Dashboard (AMS)</h2>
+      <div style="overflow:auto">
+        <table id="ownerTable"><thead><tr><th>RegNo</th><th>Name</th><th>Phone</th><th>Email</th><th>ID No</th><th>Rent</th><th>Advance</th><th>Payments</th><th>Actions</th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <div id="ownerEditor" class="hidden" style="margin-top:12px">
+        <h3>Edit: <span id="editorReg"></span></h3>
+        <div id="editorInfo" style="text-align:left"></div>
+        <h4>Monthly Payments</h4>
+        <table id="ownerPaymentsEdit"><thead><tr><th>Month</th><th>Rent</th><th>Status</th></tr></thead><tbody></tbody></table>
+        <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+          <button id="ownerSaveBtn">Update Changes</button>
+          <button id="ownerCloseBtn" class="ghost">Close</button>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">
+        <button id="ownerSendAll">Send All to Owner (WhatsApp)</button>
+        <button id="ownerLogout" class="ghost">Logout</button>
+      </div>
+    </section>
+
+    <footer class="hint" style="text-align:center;margin-top:14px">Data saved in Firebase — available from multiple devices</footer>
+  </div>
+
+<script>
+/* ================= FIREBASE CONFIG (your config pasted here) ================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyDyty-R7Ne4H2hS-CMYUx0xmlm9oLI7koY",
+  authDomain: "jp-residency-70cbf.firebaseapp.com",
+  databaseURL: "https://jp-residency-70cbf-default-rtdb.firebaseio.com/",
+  projectId: "jp-residency-70cbf",
+  storageBucket: "jp-residency-70cbf.appspot.com",
+  messagingSenderId: "1084521996397",
+  appId: "1:1084521996397:web:c84888677e1009e9049f64"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const storage = firebase.storage();
+
+/* ================= UI HELPERS ================= */
+const OWNER_PASS = "AMS";
+const $ = id => document.getElementById(id);
+
+function show(sectionId){
+  // hide all main sections
+  ['homeCard','newCard','confirmCard','successCard','loginCard','userCard','ownerLoginCard','ownerCard'].forEach(k=>{ const el=$(k); if(el) el.classList.add('hidden'); });
+  // hide ownerEditor by default
+  if($('ownerEditor')) $('ownerEditor').classList.add('hidden');
+  // show requested
+  if($(sectionId)) $(sectionId).classList.remove('hidden');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+
+/* initial */
+show('homeCard');
+
+/* top buttons */
+$('btnNew').addEventListener('click', ()=> show('newCard'));
+$('btnAlready').addEventListener('click', ()=> show('loginCard'));
+$('btnOwner').addEventListener('click', ()=> show('ownerLoginCard'));
+$('backLogin').addEventListener('click', ()=> show('homeCard'));
+$('backOwner').addEventListener('click', ()=> show('homeCard'));
+
+/* image preview */
+$('aadFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f){ $('aadPreview').classList.add('hidden'); return; }
+  const r = new FileReader(); r.onload=()=>{ $('aadPreview').src=r.result; $('aadPreview').classList.remove('hidden'); }; r.readAsDataURL(f);
+});
+$('signFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f){ $('signPreview').classList.add('hidden'); return; }
+  const r = new FileReader(); r.onload=()=>{ $('signPreview').src=r.result; $('signPreview').classList.remove('hidden'); }; r.readAsDataURL(f);
+});
+
+/* generate unique 4-digit registration number */
+async function genUnique4(){
+  while(true){
+    const code = String(Math.floor(1000 + Math.random()*9000));
+    const snap = await db.ref('users/' + code).once('value');
+    if(!snap.exists()) return code;
+  }
+}
+
+/* ---------------- SUBMIT REGISTRATION ---------------- */
+let lastReg = null;
+$('regForm').addEventListener('submit', async (ev)=>{
+  ev.preventDefault();
+  $('regMsg').innerText = 'Submitting... Please wait.';
+  try{
+    // check required images and name
+    if(!$('aadFile').files[0] || !$('signFile').files[0]){ alert('Please upload Aadhaar and Signature images'); $('regMsg').innerText=''; return; }
+    const name = ($('fullName').value || '').trim().toUpperCase();
+    if(!name){ alert('Enter full name'); $('regMsg').innerText=''; return; }
+
+    const payload = {
+      name,
+      gender: $('gender').value,
+      phone: $('mobile').value || '',
+      email: $('email').value || '',
+      address: $('address').value || '',
+      idType: $('idType').value,
+      idNumber: $('idNumber').value || '',
+      dateOfLiving: $('dateOfLiving').value || '',
+      guests: $('guests').value || '1',
+      rent: $('rent').value || '',
+      advance: $('advance').value || '',
+      meter: $('meter').value || '',
+      createdAt: Date.now()
+    };
+
+    // unique reg
+    const reg = await genUnique4();
+
+    // upload files
+    const aadFile = $('aadFile').files[0];
+    const signFile = $('signFile').files[0];
+    const aadRef = storage.ref('aadhaar/' + reg + '_' + Date.now() + '_' + aadFile.name);
+    const signRef = storage.ref('signature/' + reg + '_' + Date.now() + '_' + signFile.name);
+
+    const aadSnap = await aadRef.put(aadFile);
+    payload.aadhaarUrl = await aadSnap.ref.getDownloadURL();
+
+    const signSnap = await signRef.put(signFile);
+    payload.signUrl = await signSnap.ref.getDownloadURL();
+
+    // init payments Jan-Dec current year
+    const year = new Date().getFullYear();
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    payload.payments = {};
+    months.forEach(m => payload.payments[m + ' ' + year] = { rent: payload.rent || '', status: 'Not Done' });
+
+    payload.password = ''; // will set on confirm
+
+    // save
+    await db.ref('users/' + reg).set(payload);
+
+    lastReg = reg;
+    $('regMsg').innerText = '';
+    $('welcomeConfirm').innerText = `WELCOME MR. ${payload.name} TO JP RESIDENCY`;
+    $('regNoText').innerText = `YOUR REGISTRATION NUMBER IS ${reg}`;
+    show('confirmCard');
+
+  } catch(err){
+    console.error(err);
+    alert('Error saving registration: ' + (err.message || err));
+    $('regMsg').innerText = '';
+  }
+});
+$('cancelReg').addEventListener('click', ()=> show('homeCard'));
+
+/* ---------------- CONFIRM: save password ---------------- */
+$('savePassBtn').addEventListener('click', async ()=>{
+  const p = ($('setPass').value || '').trim();
+  const re = ($('confirmMobile').value || '').trim();
+  if(!lastReg){ alert('No registration to confirm'); return; }
+  if(!/^\d{4}$/.test(p)){ alert('Password should be exactly 4 digits'); return; }
+  const snap = await db.ref('users/' + lastReg).once('value');
+  const rec = snap.exists() ? snap.val() : null;
+  if(rec && rec.phone && re && rec.phone !== re){
+    if(!confirm('Re-entered mobile does not match original. Continue anyway?')) return;
+  }
+  await db.ref('users/' + lastReg + '/password').set(p);
+  $('successWelcome').innerText = `WELCOME MR. ${ rec ? rec.name : '' } TO JP RESIDENCY`;
+  $('successReg').innerText = lastReg;
+  show('successCard');
+});
+$('cancelConfirm').addEventListener('click', ()=> { lastReg=null; show('homeCard'); });
+
+/* ---------------- success actions ---------------- */
+$('sendOwner').addEventListener('click', async ()=>{
+  if(!lastReg) return alert('No registration');
+  const snap = await db.ref('users/' + lastReg).once('value');
+  const r = snap.val();
+  if(!r) return alert('Record missing');
+  const msg = `JP Residency - New Guest\nRegNo: ${lastReg}\nName: ${r.name}\nPhone: ${r.phone}\nEmail: ${r.email}\nID: ${r.idType} ${r.idNumber}\nRent: ${r.rent}\nAdvance: ${r.advance}`;
+  window.open('https://wa.me/919942823314?text=' + encodeURIComponent(msg), '_blank');
+});
+$('finishBtn').addEventListener('click', ()=> { lastReg=null; show('homeCard'); });
+
+/* ---------------- LOGIN (USER) ---------------- */
+$('loginBtn').addEventListener('click', async ()=>{
+  const reg = ($('loginReg').value || '').trim();
+  const pass = ($('loginPass').value || '').trim();
+  if(!reg){ $('loginMsg').innerText='Enter registration number'; return; }
+  $('loginMsg').innerText='Checking...';
+  try{
+    const snap = await db.ref('users/' + reg).once('value');
+    if(!snap.exists()){ $('loginMsg').innerText=''; alert('Registration not found'); return; }
+    const data = snap.val();
+    if(data.password !== pass){ $('loginMsg').innerText=''; alert('Incorrect password'); return; }
+
+    $('userWelcome').innerText = `WELCOME MR. ${ (data.name || '').toUpperCase() }`;
+    let txt = '';
+    txt += `REGISTRATION NUMBER: ${reg}\n`;
+    txt += `FULL NAME: ${data.name}\n`;
+    txt += `GENDER: ${data.gender}\n`;
+    txt += `PHONE: ${data.phone}\n`;
+    txt += `EMAIL: ${data.email}\n`;
+    txt += `ADDRESS: ${data.address}\n`;
+    txt += `ID: ${data.idType} ${data.idNumber}\n`;
+    txt += `DATE OF LIVING: ${data.dateOfLiving}\n`;
+    txt += `GUESTS: ${data.guests}\n`;
+    txt += `RENT: ${data.rent}\n`;
+    txt += `ADVANCE: ${data.advance}\n`;
+    txt += `PREV METER: ${data.meter}\n`;
+    $('userDetails').innerText = txt;
+
+    const imgs = [];
+    if(data.aadhaarUrl) imgs.push(`<div><b>Aadhaar</b><br><img src="${data.aadhaarUrl}" class="thumb"></div>`);
+    if(data.signUrl) im
